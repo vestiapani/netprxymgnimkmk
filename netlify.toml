@@ -1,12 +1,6 @@
 [build]
-  functions = "netlify/functions"
+  publish = "public"
 
-[[redirects]]
-  from = "/*"
-  to = "/.netlify/functions/proxy"
-  status = 200
-  force = true
-
-  [[edge_functions]]
-  path = "/proxy"
+[[edge_functions]]
+  path = "/*"
   function = "proxy"
