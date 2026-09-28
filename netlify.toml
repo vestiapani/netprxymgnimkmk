@@ -6,3 +6,7 @@
   to = "/.netlify/functions/proxy"
   status = 200
   force = true
+
+  [[edge_functions]]
+  path = "/proxy"
+  function = "proxy"
