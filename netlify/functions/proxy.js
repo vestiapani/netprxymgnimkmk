@@ -3,20 +3,9 @@ const ipRequestCounts = new Map();
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 Menit
 const MAX_REQUESTS_PER_IP = 40; // Maks 40 request per menit per IP
 
-// Bikin password rahasia (Terserah lu mau diganti apa)
-const SECRET_KEY = "mangnime-rahasia-banget-123";
-
 export default async (req, context) => {
-  // ========================================================
-  // 🛡️ 1. PROTEKSI 1: CEK SECRET KEY
-  // ========================================================
   const url = new URL(req.url);
   const targetUrl = url.searchParams.get("url");
-  const providedKey = url.searchParams.get("key"); // Ambil key dari URL
-
-  if (providedKey !== SECRET_KEY) {
-    return new Response("Unauthorized: Lu siapa ngab?", { status: 401 });
-  }
 
   if (!targetUrl) {
     return new Response(
@@ -32,9 +21,8 @@ export default async (req, context) => {
   }
 
   // ========================================================
-  // 🛡️ 2. PROTEKSI 2: SIMPLE IN-MEMORY RATE LIMITER
+  // 🛡️ PROTEKSI: SIMPLE IN-MEMORY RATE LIMITER
   // ========================================================
-  // Ambil IP asli user dari header bawaan Netlify
   const clientIp =
     req.headers.get("x-nf-client-connection-ip") ||
     req.headers.get("x-forwarded-for") ||
@@ -46,7 +34,6 @@ export default async (req, context) => {
     startTime: now,
   };
 
-  // Reset hitungan kalau udah lewat 1 menit
   if (now - requestData.startTime > RATE_LIMIT_WINDOW_MS) {
     requestData.count = 0;
     requestData.startTime = now;
@@ -64,7 +51,7 @@ export default async (req, context) => {
   }
 
   // ========================================================
-  // 🥷 3. ADVANCED HEADER SPOOFING & FETCH
+  // 🥷 ADVANCED HEADER SPOOFING & FETCH
   // ========================================================
   const spoofedHeaders = new Headers(req.headers);
   spoofedHeaders.delete("host");
@@ -133,7 +120,7 @@ export default async (req, context) => {
     const isTimeout = error.name === "AbortError";
     const statusCode = isTimeout ? 504 : 500;
     const errorMessage = isTimeout
-      ? "Gateway Timeout: Server target terlalu lama merespon (Maks 8.5 detik)."
+      ? "Gateway Timeout: Server target terlalu lama merespon (Maks 12 detik)."
       : `Proxy Error: ${error.message}`;
 
     console.error(`🔥 [PROXY GAGAL] ${errorMessage}`);
