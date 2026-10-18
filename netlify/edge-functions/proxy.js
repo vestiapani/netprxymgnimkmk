@@ -1,12 +1,25 @@
+const ALLOWED_DOMAIN = "sankavollerei.web.id";
+
 export default async (req, context) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, User-Agent, Accept",
+      },
+    });
+  }
+
   const url = new URL(req.url);
   const targetUrl = url.searchParams.get("url");
 
   if (!targetUrl) {
     return new Response(
-      JSON.stringify({ error: "Missing target url parameter" }),
+      JSON.stringify({ status: "online", service: "mangnime-komik-node" }),
       {
-        status: 400,
+        status: 200,
         headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": "*",
@@ -16,12 +29,26 @@ export default async (req, context) => {
   }
 
   const spoofedHeaders = new Headers();
+  let targetHost = "";
   try {
-    const targetHost = new URL(targetUrl).hostname;
+    const parsed = new URL(targetUrl);
+    targetHost = parsed.hostname;
+
+    // Kunci hanya untuk domain sankavollerei.web.id
+    if (
+      targetHost !== ALLOWED_DOMAIN &&
+      !targetHost.endsWith(`.${ALLOWED_DOMAIN}`)
+    ) {
+      return new Response(JSON.stringify({ status: "restricted" }), {
+        status: 403,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     spoofedHeaders.set("Host", targetHost);
     spoofedHeaders.set("Referer", `https://${targetHost}/`);
-  } catch (e) {
-    return new Response("Invalid target URL format", { status: 400 });
+  } catch {
+    return new Response("Invalid request", { status: 400 });
   }
 
   spoofedHeaders.set(
@@ -30,7 +57,7 @@ export default async (req, context) => {
   );
   spoofedHeaders.set(
     "Accept",
-    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "application/json,text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   );
   spoofedHeaders.set("Accept-Language", "id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7");
   spoofedHeaders.set(
@@ -46,11 +73,11 @@ export default async (req, context) => {
   spoofedHeaders.set("Upgrade-Insecure-Requests", "1");
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000);
+  const timeoutId = setTimeout(() => controller.abort(), 6000); // 6 detik (sebelumnya 25 detik)
 
   try {
     const response = await fetch(targetUrl, {
-      method: req.method,
+      method: "GET",
       headers: spoofedHeaders,
       redirect: "follow",
       signal: controller.signal,
@@ -60,7 +87,8 @@ export default async (req, context) => {
 
     const responseHeaders = new Headers(response.headers);
     responseHeaders.set("Access-Control-Allow-Origin", "*");
-    responseHeaders.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    responseHeaders.set("Access-Control-Allow-Methods", "GET, OPTIONS");
+    responseHeaders.set("Cache-Control", "public, max-age=1800, s-maxage=1800");
     responseHeaders.delete("x-frame-options");
     responseHeaders.delete("content-security-policy");
     responseHeaders.delete("set-cookie");
